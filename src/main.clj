@@ -5,18 +5,21 @@
             [cheshire.core :as json]
             [clojure.tools.cli :refer [parse-opts]]))
 
+(def transcription-provider "https://tactiq-apps-prod.tactiq.io/transcript")
+
 (def cli-options
-  [["-u" "--url URL" "YouTube video URL"
-    :validate [(fn [url]
-                 (or (re-matches #"https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+" url)
-                     (re-matches #"https?://youtu\.be/[\w-]+" url)))
-               "Must be a valid YouTube video URL"]]
-   ["-l" "--lang LANG" "Language code (default: en)"
+  [["-l" "--lang LANG" "Language code (default: en)"
     :default "en"]
    ["-h" "--help"]])
 
+; TODO: add a usage info
+
+(defn validate-url [url]
+  (or (re-matches #"https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+" url)
+      (re-matches #"https?://youtu\.be/[\w-]+" url)))
+
 (defn transcribe [url lang]
-  (let [response (http/post "https://tactiq-apps-prod.tactiq.io/transcript"
+  (let [response (http/post transcription-provider
                             {:headers {"Content-Type" "application/json"}
                              :body (json/generate-string
                                      {:videoUrl url
@@ -28,9 +31,11 @@
     (cond
       (:help options)      (println summary)
       errors               (do (println errors) (System/exit 1))
-      (not (:url options)) (do (println "Please provide a YouTube URL with -u or --url") (System/exit 1))
+      ; TODO: refactor out validate-args
+      (empty? arguments)   (do (println "Please provide a YouTube URL as a positional argument") (System/exit 1))
+      (not (validate-url (first arguments))) (do (println "Must be a valid YouTube video URL") (System/exit 1))
 
-      :else (transcribe (:url options) (:lang options)))))
+      :else (transcribe (first arguments) (:lang options)))))
 
 (when (= *file* (System/getProperty "babashka.file"))
   (apply -main *command-line-args*))
