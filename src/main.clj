@@ -3,6 +3,7 @@
 (ns main
   (:require [babashka.http-client :as http]
             [cheshire.core :as json]
+            [clojure.string :as str]
             [clojure.tools.cli :refer [parse-opts]]))
 
 (def transcription-provider "https://tactiq-apps-prod.tactiq.io/transcript")
@@ -24,7 +25,17 @@
                              :body (json/generate-string
                                      {:videoUrl url
                                       :langCode lang})})]
-    (println (json/parse-string (:body response) true))))
+    (json/parse-string (:body response) true)))
+
+(defn plain-text
+  [{title    :title
+    captions :captions}]
+  (->> captions
+       (sort-by #(Float/parseFloat (:start %)))
+       (map (fn [{start-ts :start
+                  text     :text}]
+              (format "[%s] %s" start-ts text)))
+       (str/join "\n")))
 
 (defn -main [& args]
   (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)]
@@ -35,7 +46,10 @@
       (empty? arguments)   (do (println "Please provide a YouTube URL as a positional argument") (System/exit 1))
       (not (validate-url (first arguments))) (do (println "Must be a valid YouTube video URL") (System/exit 1))
 
-      :else (transcribe (first arguments) (:lang options)))))
+      :else (-> (first arguments)
+                (transcribe (:lang options))
+                (plain-text)
+                (println)))))
 
 (when (= *file* (System/getProperty "babashka.file"))
   (apply -main *command-line-args*))
