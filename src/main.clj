@@ -7,7 +7,9 @@
 
 (def cli-options
   [["-u" "--url URL" "YouTube video URL"
-    :validate [#(re-matches #"https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+" %)
+    :validate [(fn [url]
+                 (or (re-matches #"https?://(?:www\.)?youtube\.com/watch\?v=[\w-]+" url)
+                     (re-matches #"https?://youtu\.be/[\w-]+" url)))
                "Must be a valid YouTube video URL"]]
    ["-l" "--lang LANG" "Language code (default: en)"
     :default "en"]
