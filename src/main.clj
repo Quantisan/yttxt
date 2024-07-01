@@ -27,15 +27,24 @@
                                       :langCode lang})})]
     (json/parse-string (:body response) true)))
 
-(defn plain-text
-  [{title    :title
-    captions :captions}]
+(defn format-caption
+  [{:keys [start text]}]
+  (format "[%s] %s" start text))
+
+(defn sort-captions
+  [captions]
+  (sort-by #(Float/parseFloat (:start %)) captions))
+
+(defn captions-to-text
+  [captions]
   (->> captions
-       (sort-by #(Float/parseFloat (:start %)))
-       (map (fn [{start-ts :start
-                  text     :text}]
-              (format "[%s] %s" start-ts text)))
+       sort-captions
+       (map format-caption)
        (str/join "\n")))
+
+(defn plain-text
+  [{:keys [title captions]}]
+  (str title "\n\n" (captions-to-text captions)))
 
 (defn -main [& args]
   (let [{:keys [options arguments errors summary]} (parse-opts args cli-options)]
